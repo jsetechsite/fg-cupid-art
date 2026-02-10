@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anime Cupid Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #fff0f3;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+        }
+
+        .canvas-container {
+            background-image: radial-gradient(#ffb3c1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .custom-shadow {
+            box-shadow: 0 15px 35px -5px rgba(255, 121, 145, 0.3);
+        }
+
+        .tab-active {
+            border-bottom: 4px solid #ff4d6d;
+            color: #ff4d6d;
+            background-color: rgba(255, 77, 109, 0.08);
+        }
+
+        .option-card {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+        }
+
+        .option-card:active {
+            transform: scale(0.92);
+        }
+
+        #preview-box {
+            height: 45vh;
+            min-height: 350px;
+            transition: background-color 0.3s ease;
+        }
+
+        @media (min-width: 1024px) {
+            #preview-box {
+                height: 75vh;
+                position: sticky;
+                top: 2rem;
+            }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .anime-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #drawing-canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+    <div id="app" class="max-w-6xl mx-auto px-4 py-6 md:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-pink-600 mb-1">Food Gang | Cupid Maker ✨</h1>
+            <p class="text-sm md:text-base text-pink-400 font-medium">Create your custom Cupid messenger!</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            
+            <!-- Character Preview Area -->
+            <div id="preview-box" class="relative bg-white rounded-[2.5rem] p-4 md:p-6 custom-shadow canvas-container flex flex-col items-center justify-center overflow-hidden border-4 border-white">
+                <div id="cupid-svg-container" class="w-full h-full max-w-full relative pointer-events-none flex items-center justify-center anime-float">
+                    <!-- Layers will be injected here via JS -->
+                </div>
+                <!-- Drawing Layer -->
+                <canvas id="drawing-canvas" class="absolute inset-0 w-full h-full z-10"></canvas>
+                
+                <!-- Floating Controls -->
+                <div class="absolute bottom-6 right-6 flex flex-col gap-3 z-20">
+                    <button onclick="undo()" class="bg-white/95 hover:bg-white p-3 rounded-full shadow-lg text-slate-600 transition-all border border-slate-100 active:scale-90" title="Undo (Ctrl+Z)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+                    </button>
+                    <button onclick="clearCanvas()" class="bg-white/95 hover:bg-white p-3 rounded-full shadow-lg text-slate-400 transition-all border border-slate-100 active:scale-90" title="Clear Drawing">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    </button>
+                    <button onclick="resetCharacter()" class="bg-white/95 hover:bg-white p-3 rounded-full shadow-lg text-pink-500 transition-all active:rotate-180 duration-500 border border-pink-100" title="Reset All Character Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Customization Controls -->
+            <div class="bg-white rounded-[2.5rem] custom-shadow border border-pink-50 flex flex-col overflow-hidden">
+                <!-- Navigation Tabs -->
+                <div class="flex border-b overflow-x-auto whitespace-nowrap scrollbar-hide bg-pink-50/20">
+                    <button onclick="switchTab('body')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-body">Skin</button>
+                    <button onclick="switchTab('hair')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-hair">Hair</button>
+                    <button onclick="switchTab('outfit')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-outfit">Outfit</button>
+                    <button onclick="switchTab('extras')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-extras">Extras</button>
+                    <button onclick="switchTab('background')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-background">BG</button>
+                    <button onclick="switchTab('canvas')" class="tab-btn flex-1 min-w-[80px] px-2 py-5 font-bold text-xs uppercase tracking-widest transition-colors" id="tab-canvas">Draw</button>
+                </div>
+
+                <!-- Content Panes -->
+                <div id="controls-content" class="p-6 md:p-8 space-y-6 min-h-[320px] lg:min-h-[420px]">
+                    <!-- Dynamic Content -->
+                </div>
+
+                <div class="p-6 md:p-8 pt-0 mt-auto">
+                    <button onclick="finishCustomizing()" class="w-full bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 text-lg">
+                        <span>Finish & Name ✨</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="modal" class="fixed inset-0 bg-pink-900/40 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] max-w-lg w-full p-8 relative animate-in fade-in zoom-in duration-300 shadow-2xl overflow-y-auto max-h-[95vh] scrollbar-hide">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-2 bg-slate-100 rounded-full transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-pink-600">Kawaii!</h2>
+                <p class="text-slate-500 font-medium">Give your food gang cupid a name.</p>
+            </div>
+
+            <div id="capture-area-wrapper" class="flex flex-col items-center bg-gradient-to-b from-pink-50 to-white rounded-[2.5rem] p-6 mb-6 border-2 border-pink-100 shadow-inner">
+                <div id="final-preview-container" class="relative w-full max-w-[180px] aspect-square mb-6 drop-shadow-[0_15px_15px_rgba(255,182,193,0.5)]">
+                    <div id="final-preview" class="w-full h-full rounded-2xl overflow-hidden"></div>
+                    <canvas id="final-draw-layer" class="absolute inset-0 w-full h-full"></canvas>
+                </div>
+                
+                <div class="w-full">
+                    <label class="text-[10px] font-black text-pink-300 uppercase tracking-widest mb-1 block text-center">Cupid's Name</label>
+                    <input type="text" id="cupid-name-input" maxlength="15" placeholder="Enter name..." 
+                           oninput="syncName(this.value)"
+                           class="w-full bg-white border-2 border-pink-100 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-300 font-bold text-pink-600 placeholder-pink-200 text-center text-xl">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <button onclick="downloadDesign()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-pink-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Save Image
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const defaults = {
+            skinColor: '#ffe5d9',
+            hairColor: '#ff85a1',
+            outfitColor: '#ff4d6d',
+            bgColor: '#ffffff',
+            hairStyle: 'fluffy',
+            outfitStyle: 'classic',
+            wingStyle: 'angel',
+            propStyle: 'bow',
+            activeTab: 'body',
+            cupidName: 'Chibi Cupid',
+            brushColor: '#ff4d6d',
+            brushSize: 5
+        };
+
+        let state = { ...defaults };
+        let isDrawing = false;
+        let ctx;
+        let history = []; 
+
+        const config = {
+            colors: {
+                skin: ['#ffe5d9', '#ffcad4', '#f8edeb', '#eac4d5', '#ddbea9', '#cb997e', '#8d99ae'],
+                hair: ['#ff85a1', '#ff4d6d', '#800f2f', '#ffd166', '#fb8500', '#333333', '#ffffff', '#a2d2ff'],
+                outfit: ['#ff4d6d', '#ff758f', '#ffffff', '#ffd166', '#06d6a0', '#4361EE', '#3A0CA3', '#212529'],
+                brush: ['#ff4d6d', '#ffffff', '#ffd166', '#06d6a0', '#4361EE', '#000000', '#ff85a1', '#a2d2ff'],
+                background: ['#ffffff', '#fff0f3', '#f0f4ff', '#f0fff4', '#fffaf0', '#f5f3ff', '#333333', '#ffcad4']
+            },
+            hairs: [
+                { id: 'none', label: 'None' },
+                { id: 'fluffy', label: 'Fluffy' },
+                { id: 'twin', label: 'Pigtails' },
+                { id: 'cool', label: 'Cool Kid' },
+                { id: 'bob', label: 'Short Bob' }
+            ],
+            outfits: [
+                { id: 'classic', label: 'Dress' },
+                { id: 'ribbon', label: 'Ribbon' },
+                { id: 'shirt', label: 'Shirt' },
+                { id: 'magical', label: 'Magical' }
+            ],
+            wings: [
+                { id: 'none', label: 'None' },
+                { id: 'angel', label: 'Angel' },
+                { id: 'fairy', label: 'Fairy' },
+                { id: 'heart', label: 'Heart' }
+            ],
+            props: [
+                { id: 'none', label: 'Empty' },
+                { id: 'bow', label: 'Magic Bow' },
+                { id: 'fish', label: 'Fishy' },
+                { id: 'slime', label: 'Blue Slime' },
+                { id: 'pug', label: 'Tiny Pug' },
+                { id: 'cat', label: 'Kitty' },
+                { id: 'pitchfork', label: 'Pitchfork' }
+            ]
+        };
+
+        function saveHistory() {
+            const canvas = document.getElementById('drawing-canvas');
+            if (canvas && canvas.width > 0 && canvas.height > 0) {
+                history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                if (history.length > 20) history.shift();
+            }
+        }
+
+        function undo() {
+            if (history.length === 0) return;
+            const canvas = document.getElementById('drawing-canvas');
+            if (canvas && canvas.width > 0 && canvas.height > 0) {
+                const previousState = history.pop();
+                ctx.putImageData(previousState, 0, 0);
+            }
+        }
+
+        function initDrawing() {
+            const canvas = document.getElementById('drawing-canvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            const resize = () => {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width <= 0 || rect.height <= 0) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                let tempImage = null;
+                
+                if (canvas.width > 0 && canvas.height > 0) {
+                    try { tempImage = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
+                }
+
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                if (tempImage && canvas.width > 0 && canvas.height > 0) {
+                    try { ctx.putImageData(tempImage, 0, 0); } catch(e) {}
+                }
+            };
+
+            setTimeout(() => requestAnimationFrame(resize), 250);
+            window.addEventListener('resize', resize);
+
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const start = (e) => {
+                if (state.activeTab !== 'canvas') return;
+                saveHistory();
+                isDrawing = true;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                if (e.cancelable) e.preventDefault();
+            };
+
+            const move = (e) => {
+                if (!isDrawing) return;
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.strokeStyle = state.brushColor;
+                ctx.lineWidth = state.brushSize;
+                ctx.stroke();
+                if (e.cancelable) e.preventDefault();
+            };
+
+            const end = () => isDrawing = false;
+
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            canvas.addEventListener('touchstart', start, { passive: false });
+            canvas.addEventListener('touchmove', move, { passive: false });
+            canvas.addEventListener('touchend', end);
+
+            window.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') undo();
+            });
+        }
+
+        function clearCanvas() {
+            saveHistory();
+            const canvas = document.getElementById('drawing-canvas');
+            if (canvas && canvas.width > 0 && canvas.height > 0) {
+                ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
+            }
+        }
+
+        function renderCupid(targetId = 'cupid-svg-container') {
+            const container = document.getElementById(targetId);
+            if (!container) return;
+
+            // Apply background color to the preview box
+            if (targetId === 'cupid-svg-container') {
+                document.getElementById('preview-box').style.backgroundColor = state.bgColor;
+            } else if (targetId === 'final-preview') {
+                container.style.backgroundColor = state.bgColor;
+            }
+            
+            const svg = `
+                <svg id="cupid-main-svg" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <radialGradient id="eyeGrad" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#444" />
+                            <stop offset="100%" stop-color="#000" />
+                        </radialGradient>
+                    </defs>
+                    <circle cx="200" cy="250" r="240" fill="white" opacity="0.01" />
+                    ${renderWings()}
+                    <g fill="${state.skinColor}">
+                        <path d="M175 360 Q175 420 160 420 H185 L190 360" />
+                        <path d="M225 360 Q225 420 240 420 H215 L210 360" />
+                    </g>
+                    <path d="M165 260 Q200 380 235 260 Z" fill="${state.skinColor}" />
+                    ${renderOutfit()}
+                    <circle cx="200" cy="190" r="85" fill="${state.skinColor}" />
+                    <circle cx="150" cy="215" r="12" fill="#ff4d6d" fill-opacity="0.2" />
+                    <circle cx="250" cy="215" r="12" fill="#ff4d6d" fill-opacity="0.2" />
+                    <g id="eyes">
+                        <ellipse cx="165" cy="200" rx="14" ry="18" fill="url(#eyeGrad)" />
+                        <circle cx="168" cy="192" r="5" fill="white" />
+                        <ellipse cx="235" cy="200" rx="14" ry="18" fill="url(#eyeGrad)" />
+                        <circle cx="238" cy="192" r="5" fill="white" />
+                    </g>
+                    <path d="M190 235 Q200 245 210 235" fill="none" stroke="#ff4d6d" stroke-width="3" stroke-linecap="round" />
+                    ${renderHair()}
+                    ${renderProps()}
+                </svg>
+            `;
+            container.innerHTML = svg;
+        }
+
+        function renderHair() {
+            if (state.hairStyle === 'none') return '';
+            const c = state.hairColor;
+            if (state.hairStyle === 'fluffy') return `<g fill="${c}"><circle cx="200" cy="120" r="45" /><circle cx="150" cy="140" r="40" /><circle cx="250" cy="140" r="40" /><circle cx="130" cy="190" r="30" /><circle cx="270" cy="190" r="30" /><path d="M140 160 L200 130 L260 160 L200 150 Z" /></g>`;
+            if (state.hairStyle === 'twin') return `<g fill="${c}"><circle cx="200" cy="130" r="50" /><circle cx="110" cy="130" r="35" /><circle cx="290" cy="130" r="35" /><path d="M140 180 Q150 110 200 110 Q250 110 260 180 Q200 160 140 180" /></g>`;
+            if (state.hairStyle === 'cool') return `<g fill="${c}"><path d="M120 180 L140 100 L200 90 L260 100 L280 180 Q200 140 120 180" /><path d="M150 130 L130 190 L170 150" /><path d="M250 130 L270 190 L230 150" /></g>`;
+            if (state.hairStyle === 'bob') return `<g fill="${c}"><path d="M120 150 Q120 90 200 90 Q280 90 280 150 V210 Q200 200 120 210 Z" /></g>`;
+            return '';
+        }
+
+        function renderWings() {
+            if (state.wingStyle === 'none') return '';
+            if (state.wingStyle === 'angel') return `<g fill="#fff" stroke="#ffcae9" stroke-width="3"><path d="M160 220 Q40 80 80 320 Q160 300 160 220" /><path d="M240 220 Q360 80 320 320 Q240 300 240 220" /></g>`;
+            if (state.wingStyle === 'fairy') return `<g fill="#ff758f" fill-opacity="0.6"><path d="M160 240 Q60 140 100 240 Q60 340 160 280" /><path d="M240 240 Q340 140 300 240 Q340 340 240 280" /></g>`;
+            if (state.wingStyle === 'heart') return `<g fill="#ff4d6d" fill-opacity="0.4"><circle cx="120" cy="200" r="40" /><circle cx="160" cy="200" r="40" /><path d="M80 200 L140 280 L200 200" /><circle cx="280" cy="200" r="40" /><circle cx="240" cy="200" r="40" /><path d="M320 200 L260 280 L200 200" /></g>`;
+            return '';
+        }
+
+        function renderOutfit() {
+            const c = state.outfitColor;
+            if (state.outfitStyle === 'classic') return `<path d="M150 260 H250 L260 360 H140 Z" fill="${c}" />`;
+            if (state.outfitStyle === 'ribbon') return `<g><path d="M160 260 H240 L250 350 H150 Z" fill="${c}" /><path d="M180 265 L200 280 L220 265 L215 255 L185 255 Z" fill="white" /></g>`;
+            if (state.outfitStyle === 'shirt') return `<g fill="${c}"><rect x="165" y="260" width="70" height="80" rx="5" /><rect x="150" y="260" width="20" height="50" rx="5" /><rect x="230" y="260" width="20" height="50" rx="5" /></g>`;
+            if (state.outfitStyle === 'magical') return `<g fill="${c}"><path d="M150 260 H250 L270 340 H130 Z" /><circle cx="200" cy="300" r="15" fill="white" fill-opacity="0.3" stroke="white" stroke-width="2" /></g>`;
+            return '';
+        }
+
+        function renderProps() {
+            if (state.propStyle === 'none') return '';
+            if (state.propStyle === 'bow') return `<g transform="translate(80, 270) rotate(-10)"><path d="M0 0 Q60 -50 0 -100" fill="none" stroke="#ffd166" stroke-width="8" /><path d="M-5 -50 H50" stroke="#ff4d6d" stroke-width="5" stroke-linecap="round" /></g>`;
+            if (state.propStyle === 'fish') return `<g transform="translate(280, 320) rotate(-45)"><ellipse cx="0" cy="0" rx="25" ry="15" fill="#a2d2ff" /><path d="M-20 0 L-35 -10 V10 Z" fill="#a2d2ff" /><circle cx="10" cy="-5" r="2" fill="black" /></g>`;
+            if (state.propStyle === 'slime') return `<g transform="translate(300, 320)"><path d="M-25 0 Q0 -40 25 0 V10 Q0 20 -25 10 Z" fill="#4361EE" fill-opacity="0.8" /><circle cx="-8" cy="-5" r="2" fill="white" /><circle cx="8" cy="-5" r="2" fill="white" /></g>`;
+            if (state.propStyle === 'pug') return `<g transform="translate(280, 320)"><circle cx="0" cy="0" r="20" fill="#ddbea9" /><path d="M-15 -15 L-25 -5 L-15 0 Z" fill="#6b4423" /><path d="M15 -15 L25 -5 L15 0 Z" fill="#6b4423" /><rect x="-10" y="0" width="20" height="12" rx="5" fill="#333" /><circle cx="-7" cy="-5" r="2" fill="black" /><circle cx="7" cy="-5" r="2" fill="black" /></g>`;
+            if (state.propStyle === 'cat') return `<g transform="translate(280, 320)"><circle cx="0" cy="0" r="20" fill="white" stroke="#eee" stroke-width="1" /><path d="M-18 -15 L-10 -25 L-2 -15 Z" fill="white" stroke="#eee" stroke-width="1" /><path d="M18 -15 L10 -25 L2 -15 Z" fill="white" stroke="#eee" stroke-width="1" /><circle cx="-7" cy="-2" r="2" fill="#333" /><circle cx="7" cy="-2" r="2" fill="#333" /><path d="M-3 5 Q0 8 3 5" fill="none" stroke="pink" stroke-width="2" /></g>`;
+            if (state.propStyle === 'pitchfork') return `<g transform="translate(270, 260)"><rect x="-2" y="0" width="4" height="120" fill="#555" /><path d="M-15 0 V-25 M0 0 V-30 M15 0 V-25" fill="none" stroke="#999" stroke-width="4" stroke-linecap="round" /><path d="M-15 0 H15" fill="none" stroke="#999" stroke-width="4" /></g>`;
+            return '';
+        }
+
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+            updateUI();
+        }
+
+        function updateUI() {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('tab-active', btn.id === `tab-${state.activeTab}`);
+            });
+
+            const content = document.getElementById('controls-content');
+            if (!content) return;
+            
+            let html = '';
+            const renderColorPickers = (type, current, stateKey) => `
+                <div class="flex flex-wrap gap-4">
+                    ${config.colors[type].map(c => `
+                        <button onclick="updateState('${stateKey}', '${c}')" 
+                                class="w-12 h-12 rounded-full border-4 ${current === c ? 'border-pink-500 scale-110 shadow-lg' : 'border-white shadow-sm'}" 
+                                style="background-color: ${c}"></button>
+                    `).join('')}
+                </div>
+            `;
+
+            if (state.activeTab === 'body') {
+                html = `<div class="animate-in fade-in slide-in-from-bottom-3 duration-400">
+                    <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Skin Tone</p>
+                    ${renderColorPickers('skin', state.skinColor, 'skinColor')}
+                </div>`;
+            } else if (state.activeTab === 'hair') {
+                html = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-400">
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Hair Style</p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                ${config.hairs.map(h => `<button onclick="updateState('hairStyle', '${h.id}')" class="option-card p-3 rounded-2xl border-2 text-sm font-bold ${state.hairStyle === h.id ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-50 bg-slate-50/50'}">${h.label}</button>`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Hair Color</p>
+                            ${renderColorPickers('hair', state.hairColor, 'hairColor')}
+                        </div>
+                    </div>`;
+            } else if (state.activeTab === 'outfit') {
+                html = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-400">
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Clothing Style</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                ${config.outfits.map(o => `<button onclick="updateState('outfitStyle', '${o.id}')" class="option-card p-3 rounded-2xl border-2 text-sm font-bold ${state.outfitStyle === o.id ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-50 bg-slate-50/50'}">${o.label}</button>`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Fabric Color</p>
+                            ${renderColorPickers('outfit', state.outfitColor, 'outfitColor')}
+                        </div>
+                    </div>`;
+            } else if (state.activeTab === 'extras') {
+                html = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-400">
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Wings</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                ${config.wings.map(w => `<button onclick="updateState('wingStyle', '${w.id}')" class="option-card p-3 rounded-2xl border-2 text-sm font-bold ${state.wingStyle === w.id ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-50 bg-slate-50/50'}">${w.label}</button>`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Accessory</p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                ${config.props.map(p => `<button onclick="updateState('propStyle', '${p.id}')" class="option-card p-3 rounded-2xl border-2 text-sm font-bold ${state.propStyle === p.id ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-50 bg-slate-50/50'}">${p.label}</button>`).join('')}
+                            </div>
+                        </div>
+                    </div>`;
+            } else if (state.activeTab === 'background') {
+                html = `<div class="animate-in fade-in slide-in-from-bottom-3 duration-400">
+                    <p class="text-[10px] font-black text-pink-300 mb-5 uppercase tracking-[0.2em]">Background Color</p>
+                    ${renderColorPickers('background', state.bgColor, 'bgColor')}
+                </div>`;
+            } else if (state.activeTab === 'canvas') {
+                html = `<div class="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-400">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 mb-4 flex items-center gap-2">Paintbrush Tool</p>
+                            <p class="text-xs text-slate-400 mb-4 italic">Draw directly on your Cupid! Tip: Use Ctrl+Z to undo.</p>
+                            <div class="flex flex-wrap gap-4 mb-6">
+                                ${renderColorPickers('brush', state.brushColor, 'brushColor')}
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-[10px] font-black text-pink-300 uppercase tracking-widest">
+                                    <span>Brush Size</span>
+                                    <span>${state.brushSize}px</span>
+                                </div>
+                                <input type="range" min="1" max="20" value="${state.brushSize}" 
+                                       oninput="updateState('brushSize', parseInt(this.value))"
+                                       class="w-full h-2 bg-pink-100 rounded-lg appearance-none cursor-pointer accent-pink-500">
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            content.innerHTML = html;
+            renderCupid();
+        }
+
+        function updateState(key, value) {
+            state[key] = value;
+            updateUI();
+        }
+
+        function syncName(val) {
+            state.cupidName = val || "Chibi Cupid";
+        }
+
+        function resetCharacter() {
+            state = { ...defaults };
+            const input = document.getElementById('cupid-name-input');
+            if(input) input.value = '';
+            clearCanvas();
+            updateUI();
+        }
+
+        function finishCustomizing() {
+            renderCupid('final-preview');
+            const finalDrawCanvas = document.getElementById('final-draw-layer');
+            const sourceCanvas = document.getElementById('drawing-canvas');
+            if (finalDrawCanvas && sourceCanvas && sourceCanvas.width > 0 && sourceCanvas.height > 0) {
+                const fCtx = finalDrawCanvas.getContext('2d');
+                finalDrawCanvas.width = sourceCanvas.width;
+                finalDrawCanvas.height = sourceCanvas.height;
+                fCtx.drawImage(sourceCanvas, 0, 0);
+            }
+            document.getElementById('modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('cupid-name-input').focus(), 100);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function downloadDesign() {
+            const svg = document.querySelector('#final-preview svg');
+            if (!svg) return;
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const sourceCanvas = document.getElementById('drawing-canvas');
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200; canvas.height = 1200;
+            const ctxExport = canvas.getContext('2d');
+            const img = new Image();
+            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = function() {
+                // Background color for export
+                ctxExport.fillStyle = state.bgColor;
+                ctxExport.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw Character
+                ctxExport.drawImage(img, 200, 100, 800, 800);
+                
+                // Draw User Canvas
+                if (sourceCanvas && sourceCanvas.width > 0 && sourceCanvas.height > 0) {
+                    ctxExport.drawImage(sourceCanvas, 200, 100, 800, 800);
+                }
+                
+                // Labels
+                const isDarkBg = parseInt(state.bgColor.replace('#',''), 16) < 0x888888;
+                ctxExport.fillStyle = isDarkBg ? '#ffffff' : '#db2777';
+                ctxExport.font = 'bold 80px Quicksand';
+                ctxExport.textAlign = 'center';
+                ctxExport.fillText(state.cupidName.toUpperCase(), canvas.width/2, 1050);
+                
+                ctxExport.font = 'bold 30px Quicksand';
+                ctxExport.fillStyle = isDarkBg ? 'rgba(255,255,255,0.6)' : '#ff85a1';
+                ctxExport.fillText('ANIME CUPID CREATOR ✨', canvas.width/2, 1120);
+                
+                try {
+                    const pngUrl = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = pngUrl;
+                    link.download = `${state.cupidName.replace(/\s+/g, '-').toLowerCase()}-cupid.png`;
+                    link.click();
+                } catch (e) { console.error("Export failed", e); }
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+
+        window.onload = () => {
+            updateUI();
+            initDrawing();
+        };
+    </script>
+</body>
+</html>
